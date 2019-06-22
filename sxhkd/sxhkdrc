@@ -1,0 +1,46 @@
+# Winkey + Enter = terminal
+super + e
+    st
+#st -e tmux
+
+# Winkey + e = Emacs
+# super + e
+# emacs --fullscreen
+
+# Winkey + l = program launcher
+super + l
+    ~/.scripts/dmenu_launcher.sh
+
+# Winkey + w = kill window
+super + w
+    bspc node -k
+
+# Move window to another workspace
+super + {_,shift + }{1-9,0,minus,equal}
+    bspc {desktop -f,node -d} '^{1-9,10,11,12}'
+
+XF86MonBrightnessDown
+  light -U 5
+XF86MonBrightnessUp
+  light -A 5
+XF86AudioLowerVolume
+  amixer set Master playback 1-
+XF86AudioRaiseVolume
+  amixer set Master playback 1+
+XF86AudioMute
+  amixer set Master toggle
+
+Print
+  scrot ~/.screenshots/%Y-%m-%d-%T-src.png
+
+# Winkey + t
+super + t
+  ~/.scripts/dmenu_todo.sh
+
+# alt + number -> switch language
+alt + {1-6}
+  setxkbmap {us,ru,cz,de -variant qwerty,fr,tr} -option caps:swapescape
+
+# Winkey + x
+super + x
+  ~/.scripts/dmenu_command.sh
