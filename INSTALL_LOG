@@ -1,0 +1,457 @@
+0. Make a bootable USB stick with Archlinux:
+
+# dd if=archlinux.iso of=/dev/sda
+
+1. Boot up. We're assuming that we're going to install UEFI/GPT system:
+
+# fdisk /dev/sda
+    g	<- this creates a new GPT partition
+    n	<- for new partition
+    1	<- for first partition
+    enter
+    +300M
+    t	<- to change type
+    1	<- select partition number
+    1	<- EFI System type
+    w	<- write to disk
+
+# fdisk /dev/sda
+    n
+    2
+    enter
+    +30GB or whatever
+    w
+
+# mkfs.fat -F32 /dev/sda1
+# mkfs.ext4 /dev/sda2
+
+# mount /dev/sda2 /mnt
+    that it, nothing else
+
+2. Base system installation:
+
+# pacstrap -i /mnt base base-devel
+    This wants to install:
+    acl archlinux-keyring argon2 attr audit ca-certificates ca-certificates-mozilla ca-certificates-utils cracklib curl
+    db dbus expat gc gdbm glib2 gmp gnupg gnutls gpgme guile hwids iana-etc icu
+    iptables json-c kbd keyutils kmod krb5 libaio libarchive libassuan libatomic_ops libcap libcap-ng libcroco
+    libelf libffi libgcrypt libgpg-error libidn2 libksba libldap libmnl libmpc libnetfilter_conntrack libnfnetlink
+    libnftnl libnghttp2 libnl libpcap libpipeline libpsl libsasl libseccomp libsecret libssh2 libtasn1 libtirpc
+    libunistring libusb libutil-linux libxml2 linux-api-headers lz4 mkinitcpio mkinitcpio-busybox mpfr ncurses nettle npth
+    openresolv openssl p11-kit pacman-mirrorlist pam pambase pcre pcre2 pinentry popt readline sqlite
+    systemd-libs thin-provisioning-tools tzdata xz zlib zstd autoconf automake bash binutils bison bzip2
+    coreutils cryptsetup device-mapper dhcpcd diffutils e2fsprogs fakeroot file filesystem findutils flex gawk
+    gcc gcc-libs gettext glibc grep groff gzip inetutils iproute2 iputils jfsutils less
+    libtool licenses linux linux-firmware logrotate lvm2 m4 make man-db man-pages mdadm
+    nano netctl pacman patch pciutils perl pkgconf procps-ng psmisc reiserfsprogs s-nail sed shadow sudo
+    sysfsutils systemd systemd-sysvcompat tar texinfo usbutils util-linux vi which xfsprogs
+
+# genfstab -U -p /mnt >> /mnt/etc/fstab
+
+# arch-chroot /mnt
+
+# passwd
+
+# pacman -S grub
+
+# pacman -S efibootmgr
+    This wants to install:
+    efivar efibootmgr
+
+# pacman -S dosfstools os-prober mtools linux-headers linux-lts linux-lts-headers
+
+3. Setup timezone, data, and hostname:
+
+# ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime
+# hwclock --systohc
+# nvim /etc/locale.gen	<- uncomment en_US.UTF-8...
+# locale-gen
+# echo 'percpc' >> /etc/hostname
+# echo LANG=en_US.UTF-8 > /etc/locale.conf
+# export LANG=en_US.UTF-8
+
+4. Install grub:
+
+# grub-install --target=x86_64-efi --bootloader-id=grub_uefi --recheck
+# cp /usr/share/locale/en\@quot/LC_MESSAGES/grub.mo /boot/grub/locale/en.mo
+# grub-mkconfig -o /boot/grub/grub.cfg
+
+5. Make swapfile:
+
+# fallocate -l 2G /swapfile
+# chmod 600 /swapfile
+# mkswap /swapfile
+# echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+    I also needed to mount additional HDD /dev/sdb1:
+    # nvim /etc/fstab
+    :r !blkid	<- to output list of partitions with UUIDs
+
+6. Some additional stuff:
+
+# pacman -S dialog wpa_supplicant
+# nvim /etc/pacman.conf
+    uncomment [multilib]
+              Include = ...
+    SigLevel = Never
+    Server = http://repo.archlinux.fr/$arch
+
+# useradd -m -g users -G wheel,storage,power -s /bin/bash percolant
+# passwd percolant
+# pacman -S sudo
+# EDITOR=nvim visudo	<- uncomment %wheel ALL...
+
+7. Reboot:
+
+# exit
+# umount -a
+# reboot
+
+--------------------------------------------------------------------------------
+
+8. # cp $VAULT_BK/.scripts/wf_connect /usr/local/bin
+   # cp $VAULT_BK/.scripts/wf_create /usr/local/bin
+   $ cp $VAULT_BK/.scripts/.wifi-profiles ~
+   $ cp $VAULT_BK/.scripts/.wifi-config ~
+
+9. # pacman -S git
+   This wants to install:
+   perl-error perl-mailtools perl-timedate git
+
+10. # pacman -S xorg
+    This wants to install:
+    fontconfig freetype2 graphite harfbuzz libdmx libdrm libedit libepoxy libevdev libfontenc libglvnd libgudev libice libinput libomxil-bellagio libpciaccess libpng libsm libunwind libwacom libx11 libxau libxaw libxcb libxcomposite libxcursor libxdamage libxdmcp libxext libxfixes libxfont2 libxft libxi libxinerama libxkbfile libxmu libxpm libxrandr libxrender libxshmfence libxt libxtst libxv libxxf86dga libxxf86vm llvm-libs lm_sensors mesa mtdev pixman wayland xcb-proto xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xf86-input-libinput xkeyboard-config xorg-font-utils xorg-fonts-alias xorg-util-macros xorgproto xf86-video-vesa xorg-bdftopcf xorg-docs xorg-font-util xorg-fonts-100dpi xorg-fonts-75dpi xorg-fonts-encodings xorg-iceauth xorg-luit xorg-mkfontscale xorg-server xorg-server-common xorg-server-devel xorg-server-xdmx xorg-server-xephyr xorg-server-xnest xorg-server-xvfb xorg-server-xwayland xorg-sessreg xorg-setxkbmap xorg-smproxy xorg-x11perf xorg-xauth xorg-xbacklight xorg-xcmsdb xorg-xcursorgen xorg-xdpyinfo xorg-xdriinfo xorg-xev xorg-xgamma xorg-xhost xorg-xinput xorg-xkbcomp xorg-xkbevd xorg-xkbutils xorg-xkill xorg-xlsatoms xorg-xlsclients xorg-xmodmap xorg-xpr xorg-xprop xorg-xrandr xorg-xrdb xorg-xrefresh xorg-xset xorg-xsetroot xorg-xvinfo xorg-xwd xorg-xwininfo xorg-xwud
+
+11. # pacman -S bspwm sxhkd
+
+12. $ git clone https://aur.archlinux.org/yay.git
+    $ cd yay
+    $ makepkg -si
+    This wants to install:
+    go
+
+13. $ yay -S polybar-git
+    This wants to install:
+    lzo cairo xcb-util-xrm xcb-util-cursor
+    This also wants to install as dependencies to make package which I was offered the choice to uninstall after polybar installation, I choose not to:
+    shared-mime-info jsoncpp rhash cmake python python2 python-pytz python-babel python-docutils python-imagesize python-appdirs python-pyparsing python-six python-packaging python-setuptools python-markupsafe python-jinja python-pygments python-urllib3 python-chardet python-idna python-requests python-snowballstemmer python-sphinx-alabaster-theme python-sphinxcontrib-applehelp python-sphinxcontrib-devhelp python-sphinxcontrib-htmlhelp python-sphinxcontrib-jsmath python-sphinxcontrib-qthelp python-sphinxcontrib-serializinghtml python-sphinx
+
+14. # pacman -S curl
+
+15. # pacman -S lxappearance
+    This wants to install:
+    atk avahi desktop-file-utils fribidi gdk-pixbuf2 gtk-update-icon-cache gtk2 hicolor-icon-theme jasper libcups libdaemon libdatrie libjpeg-turbo librsvg libthai libtiff pango lxappearance
+
+16. # pacman -S arandr
+    This wants to install:
+    adobe-source-code-pro-fonts adwaita-icon-theme alsa-lib at-spi2-atk at-spi2-core cantarell-fonts colord dconf glib-networking gobject-introspection-runtime gsettings-desktop-schemas gtk3 iso-codes js60 json-glib lcms2 libcanberra libgusb libogg libproxy libsoup libvorbis libxkbcommon polkit pygobject-devel python-cairo python-gobject rest sound-theme-freedesktop tdb wayland-protocols arandr
+
+17. $ cp -r $VAULT_BK/.config/bspwm ~/.config/
+    $ cp -r $VAULT_BK/.config/sxhkd ~/.config/
+    $ cp -r $VAULT_BK/.config/polybar ~/.config/
+    $ cp -r $VAULT_BK/.config/nvim ~/.config/
+    $ cp -r $VAULT_BK/.vim ~
+    $ cp -r $VAULT_BK/.local/share/nvim ~/.local/share/
+    $ nvim
+    :PlugInstall
+
+18. # pacman -S xorg-xinit
+
+19. $ cp $VAULT_BK/.vimrc ~
+    $ cp $VAULT_BK/.Xresources ~
+    $ cp $VAULT_BK/.gtkrc-2.0 ~
+    $ cp $VAULT_BK/.gtkrc-2.0.mine ~
+    $ cp $VAULT_BK/.bash* ~
+    $ cp $VAULT_BK/.xinitrc ~
+    $ cp $VAULT_BK/.fehbg ~
+    $ cp $VAULT_BK/.gitconfig ~
+
+20. $ cp -r $VAULT_BK/.scripts/ ~
+
+21. $ cp -r $VAULT_BK/.local/share/fonts ~/.local/share/
+    $ fc-cache -f
+
+22. $ git clone https://github.com/LukeSmithxyz/st.git
+    $ cd st
+    $ sed -i 's/static char \*font = .*/static char *font = \"Iosevka Nerd Font:size=11:antialias=true:autohint=true\";/g' config.h
+    $ make
+    # make install
+    Here's the `make -n install`:
+        mkdir -p /usr/local/bin
+        cp -f st /usr/local/bin
+        cp -f st-copyout /usr/local/bin
+        chmod 755 /usr/local/bin/st
+        chmod 755 /usr/local/bin/st-copyout
+        mkdir -p /usr/local/share/man/man1
+        sed "s/VERSION/0.8.2/g" < st.1 > /usr/local/share/man/man1/st.1
+        chmod 644 /usr/local/share/man/man1/st.1
+        tic -sx st.info
+        echo Please see the README file regarding the terminfo entry of st.
+
+23. # reboot
+
+--------------------------------------------------------------------------------
+
+24. # pacman -S firefox-developer-edition
+    As the provider for ttf-font choose ttf-liberation
+    This wants to install:
+    aom dbus-glib ffmpeg flac giflib gsm jack l-smash lame libass libasyncns libavc1394 libbluray libibus libiec61883 libmodplug libpulse libraw1394 libsamplerate
+libsndfile libsoxr libssh libtheora libva libvdpau libvpx libwebp mailcap mozilla-common nspr nss opencore-amr openjpeg2 opus sdl2 speex speexdsp startup-notification 
+ttf-liberation v4l-utils vid.stab x264 x265 xvidcore zita-alsa-pcmi zita-resampler firefox-developer-edition
+
+25. # pacman -S dmenu
+
+26. Configure graphics:
+    I've tried to configure nvidia-xrun, but it didn't want to work :-/
+    So I went and configured it via bumblebee, in result it works as so:
+        if you do lsmod, there won't be nvidia modules loaded
+        you may run optirun (primusrun) <application> and while it works, the module is loaded
+        then it's automatically unload
+        usage:
+            $ optirun <application>
+            $ optirun -b primus <application>
+            $ primusrun <application>
+            $ vblank_mode=0 primusrun <application>    <- this turns off vsync, other than that I don't really know the difference, gonna test it as soon as I'll install some games
+
+    # pacman -S nvidia-lts
+    This wants to install:
+    egl-wayland eglexternalplatform nvidia-utils nvidia-lts
+
+    # pacman -S bbswitch-dkms
+    This wants to install:
+    bbswitch dkms bbswitch-dkms
+    ^ bbswitch takes care of power management: loads off the module when it's not used and loads it in, when used; archwiki says this (or maybe bumblebee approach in general) only works on dual-gpu laptops and not desktops
+
+    # pacman -S bumblebee
+    This wants to install:
+    glu virtualgl bumblebee
+
+    # pacman -S xf86-video-intel
+    This wants to install:
+    libxvmc xf86-video-intel
+
+    # pacman -S lib32-virtualgl
+    This wants to install:
+    lib32-bzip2 lib32-expat lib32-gcc-libs lib32-glibc lib32-glu lib32-icu lib32-libdrm lib32-libelf lib32-libffi lib32-libglvnd lib32-libjpeg-turbo lib32-libpciaccess lib32-libx11
+    lib32-libxau lib32-libxcb lib32-libxdamage lib32-libxdmcp lib32-libxext lib32-libxfixes lib32-libxml2 lib32-libxshmfence lib32-libxv lib32-libxxf86vm lib32-llvm-libs
+    lib32-lm_sensors lib32-mesa lib32-ncurses lib32-readline lib32-wayland lib32-xz lib32-zlib lib32-virtualgl
+
+    # pacman -S lib32-nvidia-utils
+
+    # pacman -S mesa-demos
+    This wants to install:
+    freeglut glew mesa-demos
+
+    # gpasswd -a percolant bumblebee
+    # systemctl enable bumblebeed.service
+    # pacman -S primus lib32-primus
+    # reboot
+
+27. # pacman -S xclip xsel
+
+28. $ cp -r $VAULT_BK/.mozilla ~
+    $ cp -r $VAULT_BK/.cache/mozilla ~/.cache/
+
+    $ cp $VAULT_BK/gtk-2.0 ~/.config/
+    $ cp $VAULT_BK/gtk-3.0 ~/.config/
+
+    $ cp $VAULT_BK/projects ~
+    $ cp $VAULT_BK/polygon ~
+
+29. # pacman -S curl
+
+30. Install zsh via script.
+    This installs:
+        zsh zsh-completions
+    $ cp $VAULT_BK/.zsh ~
+    $ cp $VAULT_BK/.zshrc ~
+    $ cp $VAULT_BK/.oh-my-zsh ~
+
+31. # pacman -S ranger atool highlight libcaca w3m mediainfo poppler
+    This wants to install:
+    gpm imlib2 libid3tag libmediainfo libmms libzen lua atool highlight libcaca mediainfo poppler ranger w3m
+
+    $ ranger --copy-config=all
+    $ cp $SYS_DEPLOY/ranger/configs/rifle.conf ~/.config/ranger/
+    $ cp $SYS_DEPLOY/ranger/configs/commands.py ~/.config/ranger/
+    $ cp $SYS_DEPLOY/ranger/configs/commands_full.py ~/.config/ranger/
+    $ cp $SYS_DEPLOY/ranger/configs/rc.conf ~/.config/ranger/
+    $ cp $SYS_DEPLOY/ranger/configs/scope.sh ~/.config/ranger/
+
+32. # pacman -S python-pip
+    This wants to install:
+    python-cachecontrol python-colorama python-distlib python-distro python-html5lib python-lockfile python-msgpack python-pep517 python-progress python-pytoml python-retrying python-webencodings
+    python-pip
+
+33. $ pip install --user click readchar termcolor
+
+35. # pacman -S light wget
+
+36. $ echo "percolant ALL=NOPASSWD: /sbin/halt, /sbin/reboot, /sbin/poweroff" > percolant
+    # cp percolant /etc/sudoers.d/
+    # chown root:root /etc/sudoers.d/percolant
+
+37. # pacman -S chromium
+    This wants to install:
+    cdparanoia graphene gst-plugins-base gst-plugins-base-libs gstreamer libvisual libxslt libxss minizip orc pipewire re2 rtkit sbc snappy xdg-utils chromium
+
+38. # pacman -S arc-gtk-theme
+
+39. # pacman -S postgresql
+    This wants to install:
+    postgresql-libs postgresql
+
+    $ sudo -iu postgres
+    [postgres] $ initdb -D /var/lib/postgres/data
+    [postgres] $ exit
+    # systemctl enable postgresql.service
+    # systemctl start postgresql.service
+    $ sudo -iu postgres
+    [postgres] $ createuser --interactive
+    [postgres] $ createdb kn -O percolant
+    [postgres] $ exit
+    $ psql -U percolant -d kn -1 -v ON_ERROR_STOP=1 -f kn.sql
+
+40. $ pip install --user psycopg2-binary
+
+41. # pacman -S hexchat
+    This wants to install:
+    hexchat libnotify
+
+42. # pacman -S alsa-utils
+    This wants to install:
+    fftw alsa-utils
+
+43. $ pip install --user youtube-dl ansible-lint tmuxp neovim pipenv jedi
+
+44. # pacman -S redshift
+    This wants to install:
+    geoclue geocode-glib libmm-glib redshift
+
+45. # pacman -S transmission-gtk
+    This installs:
+    transmission-gtk libevent
+
+46. # pacman -S zathura zathura-djvu zathura-pdf-poppler
+    This wants to install:
+    djvulibre girara libsynctex poppler-glib zathura zathura-djvu zathura-pdf-poppler
+
+47. # pacman -S zip unzip
+
+48. # pacman -S gimp
+    This wants to install:
+    babl blas exiv2 luajit gegl gsfonts ilmbase intel-tbb lapack lensfun libde265 libexif libgexiv2 libglade libheif libmng libmypaint libraw libspiro libwmf metis mypaint-brushes openexr
+    poppler-data pygobject2-devel pygtk python2-cairo python2-gobject2 suitesparse gimp
+
+49. # pacman -S scrot
+    This wants to install:
+    giblib scrot
+
+50. # pacman -S feh
+    # pacman -S the_silver_searcher
+
+51. # pacman -S mpv
+    This wants to install:
+    cifs-utils glslang jansson ldb libbsd libcddb libcdio libcdio-paranoia libdvdnav libdvdread libwbclient lmdb lua52 rubberband shaderc smbclient spirv-tools talloc tevent uchardet
+    vamp-plugin-sdk vulkan-icd-loader mpv
+
+52. # pacman -S nodejs
+    This wants to install:
+    c-ares libnsl libuv nodejs
+    # pacman -S npm
+    This wants to install:
+    node-gyp semver npm
+    $ cp $VAULT_BK/.npmrc ~
+    $ npm install -g eslint prettier babel-eslint eslint-plugin-react eslint-config-standard eslint-plugin-import eslint-plugin-node eslint-plugin-promise eslint-plugin-standard eslint-config-prettier eslint-plugin-prettier neovim @angular/cli@latest
+
+53. # pacman -S i3lock
+    This wants to install:
+    libev libxkbcommon-x11 i3lock
+
+54. # pacman -S elixir erlang
+    This wants to install:
+    wxgtk-common wxgtk2 elixir erlang
+
+55. # pacman -S imagemagick
+    This wants to install:
+    liblqr libraqm imagemagick
+
+56. # pacman -S telegram-desktop
+    This wants to install:
+    double-conversion openal qt5-base qt5-imageformats tslib telegram-desktop
+
+57. Copy the rest of backup (optional and what's needed):
+    $ cp -r $VAULT_BK/.cache/chromium ~/.cache
+    $ cp -r $VAULT_BK/.config/redshift.conf ~/.config
+    $ cp -r $VAULT_BK/.config/chromium ~/.config
+      ...
+
+58. Trying to spin up MTGA under wine:
+    # pacman -S wine-staging
+    This wants to install:
+    faudio lib32-acl lib32-attr lib32-dbus lib32-faudio lib32-fontconfig lib32-freetype2 lib32-gettext lib32-glib2 lib32-harfbuzz lib32-lcms2 lib32-libcap lib32-libgcrypt
+    lib32-libgpg-error lib32-libice lib32-libnl lib32-libpcap lib32-libpng lib32-libsm lib32-libtiff lib32-libusb lib32-libxcursor lib32-libxi lib32-libxrandr lib32-libxrender
+    lib32-lz4 lib32-pcre lib32-sdl2 lib32-systemd lib32-util-linux lib32-zstd wine
+
+    # pacman -S lib32-gnutls
+    This wants to install:
+    lib32-gmp lib32-libidn lib32-libtasn1 lib32-nettle lib32-p11-kit libidn lib32-gnutls
+
+    # pacman -S lib32-mpg123
+    This wants to install:
+    lib32-alsa-lib lib32-libltdl mpg123 lib32-mpg123
+
+    # pacman -S winetricks
+    This wants to install:
+    cabextract xorg-xmessage winetricks
+
+    # pacman -S lib32-gst-plugins-base-libs
+    This wants to install:
+    lib32-gstreamer lib32-libunwind lib32-orc lib32-gst-plugins-base-libs
+
+    Tried a lot of stuff, finally managed to install it, launched with:
+    $ vblank_mode=0 primusrun wine64 MTGA.exe
+
+59. Install IntelliJ stuff:
+    # pacman -S jdk-openjdk
+    This wants to install:
+    java-environment-common java-runtime-common jre-openjdk jre-openjdk-headless libnet jdk-openjdk
+
+    IntelliJ stuff don't work (showing blank screen) in tiling managers out of the box, needs a workaround:
+    # yay -S wmname
+    $ vim ~/.xinitrc    <- add "wmname LG3D" there (actually, no, I've just run it once and it still worked after restart)
+
+    # yay -S webstorm
+    This wants to install:
+    rsync webstorm
+
+    # yay -S pycharm-professional
+    This wants to install:
+    some python2 shit, yay asks if it should remove make deps after install, I chose yes
+
+60. # pacman -S vim
+    This wants to install:
+    vim vim-runtime
+
+61. # cp ~/.scripts/systemd-unit-files/* /etc/systemd/system/
+    it contains: alsa-restore.service (to make alsamixer settings persist)
+
+62. # pacman -S openssh
+    This wants to install:
+    dnssec-anchors ldns openssh
+
+63. # pacman -S gvim    <- because CLI vim here is compiled with clipboard support
+    # pacman -S tree
+    # pacman -S fzf
+    $ cp -r ~/.local/share/nvim/site/autoload ~/.vim/
+    Also ~/.vim/after/ftplugin/vim.vim is now a part of backup
+
+65. # pacman -S geckodriver   <- needed for selenium
+
+66. $ git clone https://github.com/alexanderjeurissen/ranger_devicons
+    $ cd ranger_devicons
+    # sudo make install
+    # cp /root/.config/ranger/plugins/devicons_linemode.py ~/.config/ranger/plugins/
+    # cp /root/.config/ranger/plugins/devicons.py ~/.config/ranger/plugins/
+    # chown ...
+    $ cd .. && rm -rf ranger_devicons
+    $ echo "default_linemode devicons" >> ~/.config/ranger/rc.conf
